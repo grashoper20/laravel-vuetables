@@ -4,7 +4,8 @@ namespace Grashoper20\VueTables\Tests;
 
 use Carbon\Carbon;
 use Grashoper20\VueTables\VueTablesTrait;
-use Illuminate\Database\Query\Builder;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use PHPUnit\Framework\TestCase;
 use Prophecy\Argument;
@@ -15,18 +16,23 @@ use Prophecy\Argument;
 class VueTablesTraitTest extends TestCase
 {
 
+    /**
+     * @var \Illuminate\Database\Eloquent\Builder
+     */
     private $builder;
 
     public function setUp()
     {
         parent::setUp();
-        $this->builder = $this->prophesize(Builder::class);
+        $this->builder = $this->prophesize(TestBuilder::class);
+        $this->builder->paginate(Argument::any())
+            ->willReturn($this->prophesize(LengthAwarePaginator::class)->reveal());
+        Concrete::setBuilder($this->builder->reveal());
     }
 
 
     public function testFilter()
     {
-        $test = new Concrete($this->builder->reveal());
         $this->markTestIncomplete('Test with closure....');
     }
 
@@ -37,8 +43,6 @@ class VueTablesTraitTest extends TestCase
      */
     public function testFilterColumns()
     {
-        $test = new Concrete($this->builder->reveal());
-
         $this->builder->where('testcol1', 'LIKE', '%foo%')
           ->shouldBeCalledTimes(1);
         $this->builder->where('testcol2', 'LIKE', '%bar%')
@@ -49,9 +53,8 @@ class VueTablesTraitTest extends TestCase
           Carbon::createFromFormat('Y-m-d', '2010-10-11')
             ->endOfDay(),
         ])->shouldBeCalledTimes(1);
-        $this->builder->paginate(Argument::any())->shouldBeCalled();
 
-        $test->vueTables(new Request([
+        Concrete::vueTables(new Request([
           'byColumn' => 1,
           'query' => [
             'testcol1' => 'foo',
@@ -70,13 +73,13 @@ class VueTablesTraitTest extends TestCase
      */
     public function testLimit()
     {
-        $test = new Concrete($this->builder->reveal());
+        $this->builder->paginate(10)->shouldBeCalledTimes(1)
+          ->willReturn($this->prophesize(LengthAwarePaginator::class)->reveal());
+        $this->builder->paginate(5)->shouldBeCalledTimes(1)
+          ->willReturn($this->prophesize(LengthAwarePaginator::class)->reveal());
 
-        $this->builder->paginate(10)->shouldBeCalledTimes(1);
-        $this->builder->paginate(5)->shouldBeCalledTimes(1);
-
-        $test->vueTables(new Request());
-        $test->vueTables(new Request(['limit' => 5]));
+        Concrete::vueTables(new Request());
+        Concrete::vueTables(new Request(['limit' => 5]));
     }
 
     /**
@@ -85,20 +88,17 @@ class VueTablesTraitTest extends TestCase
      */
     public function testOrderBy()
     {
-        $test = new Concrete($this->builder->reveal());
-
         $this->builder->orderBy('test1', 'asc')->shouldBeCalledTimes(1);
         $this->builder->orderBy('test2', 'asc')->shouldBeCalledTimes(1);
         $this->builder->orderBy('test3', 'desc')->shouldBeCalledTimes(1);
-        $this->builder->paginate(Argument::any())->shouldBeCalled();
 
-        $test->vueTables(new Request());
-        $test->vueTables(new Request(['orderBy' => 'test1']));
-        $test->vueTables(new Request([
+        Concrete::vueTables(new Request());
+        Concrete::vueTables(new Request(['orderBy' => 'test1']));
+        Concrete::vueTables(new Request([
           'orderBy' => 'test2',
           'ascending' => '1',
         ]));
-        $test->vueTables(new Request([
+        Concrete::vueTables(new Request([
           'orderBy' => 'test3',
           'ascending' => '0',
         ]));
@@ -106,19 +106,27 @@ class VueTablesTraitTest extends TestCase
 
 }
 
+/**
+ * Tell prophecy about some magic methods.
+ *
+ * @method whereBetween($column, array $values, $boolean = 'and', $not = false)
+ * @method orderBy($column, $direction = 'asc')
+ */
+class TestBuilder extends Builder {}
+
 class Concrete
 {
     use VueTablesTrait;
 
-    private $builder;
+    private static $builder;
 
-    public function __construct($builder)
+    public static function setBuilder($builder)
     {
-        $this->builder = $builder;
+        static::$builder = $builder;
     }
 
-    public function query()
+    public static function query()
     {
-        return $this->builder;
+        return static::$builder;
     }
 }

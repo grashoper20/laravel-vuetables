@@ -3,7 +3,7 @@
 namespace Grashoper20\VueTables;
 
 use Carbon\Carbon;
-use Illuminate\Database\Query\Builder;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 /**
@@ -12,33 +12,33 @@ use Illuminate\Http\Request;
 trait VueTablesTrait
 {
 
-    protected $vueTablesSearchFields = [];
+    protected static $vueTablesSearchFields = [];
 
     /**
      * Simple pagination results.
      *
      * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @return array
      */
-    public function vueTables(Request $request)
+    public static function vueTables(Request $request)
     {
-        return $this->buildVueTablesResult($this->query(), $request);
+        return static::buildVueTablesResult(static::query(), $request);
     }
 
     /**
      * Build pagination result from a query builder.
      *
-     * @param \Illuminate\Database\Query\Builder $query
+     * @param \Illuminate\Database\Eloquent\Builder $query
      * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     * @return array
      */
-    public function buildVueTablesResult(Builder $query, Request $request)
+    public static function buildVueTablesResult(Builder $query, Request $request)
     {
         $searchQuery = $request->query('query', '');
         if ($searchQuery) {
             $request->query('byColumn', '') == 1 ?
-              $this->filterByColumn($query, $searchQuery) :
-              $this->filterFields($query, $searchQuery);
+              static::filterByColumn($query, $searchQuery) :
+              static::filterFields($query, $searchQuery);
         }
         if ($request->query('orderBy')) {
             $query->orderBy(
@@ -47,19 +47,23 @@ trait VueTablesTrait
             );
         }
 
-        return $query->paginate($request->query('limit', 10));
+        $pagination = $query->paginate($request->query('limit', 10));
+
+        return [
+          'count' => $pagination->total(),
+          'data' => $pagination->items(),
+        ];
     }
 
     /**
      * Helper method to search by columns.
      *
-     * @param \Illuminate\Database\Query\Builder $query
+     * @param \Illuminate\Database\Eloquent\Builder $query
      *   The query builder
      * @param array $queries
      *   Yo dawg, a list of queries from the query query argument.
-     * @return \Illuminate\Database\Query\Builder $queryBuilder
      */
-    private function filterByColumn(Builder $query, array $queries)
+    private static function filterByColumn(Builder $query, array $queries)
     {
         foreach (array_filter($queries) as $field => $searchQuery) {
             if (is_scalar($searchQuery)) {
@@ -78,17 +82,16 @@ trait VueTablesTrait
     /**
      * Helper method to search by columns.
      *
-     * @param \Illuminate\Database\Query\Builder $query
+     * @param \Illuminate\Database\Eloquent\Builder $query
      *   The query builder
      * @param array $searchQuery
      *   Search query.
-     * @return \Illuminate\Database\Query\Builder $queryBuilder
      */
-    private function filterFields(Builder $query, $searchQuery)
+    private static function filterFields(Builder $query, $searchQuery)
     {
         $query->where(function (Builder $query) use ($searchQuery) {
             $search = '%'.$searchQuery.'%';
-            foreach ($this->vueTablesSearchFields as $i => $field) {
+            foreach (static::$vueTablesSearchFields as $i => $field) {
                 $query->orWhere($field, 'LIKE', $search);
             }
         });
