@@ -1,0 +1,29 @@
+{
+  "name": "grashoper20/laravel-vuetables",
+  "description": "VueTables 2 adapter for laravel resources",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Grashoper20",
+      "email": "grashoper20@yahoo.ca"
+    }
+  ],
+  "require": {
+    "php": ">=7.0",
+    "illuminate/http": "~5.4.0|~5.5.0",
+    "illuminate/database": "~5.4.0|~5.5.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "Grashoper20\\VueTables\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Grashoper20\\VueTables\\Tests\\": "tests/"
+    }
+  },
+  "require-dev": {
+    "phpunit/phpunit": "~6.0"
+  }
+}
